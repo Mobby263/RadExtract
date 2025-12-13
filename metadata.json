@@ -1,0 +1,5 @@
+{
+  "name": "RadExtract AI",
+  "description": "A specialized research tool for extracting structured clinical variables from radiology reports and merging them with patient cohorts for analysis.",
+  "requestFramePermissions": []
+}
