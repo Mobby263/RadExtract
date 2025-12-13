@@ -40,10 +40,11 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
         extractedData: result,
         extractionStatus: 'REVIEWED'
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setStatus(AppStatus.ERROR);
-      setErrorMsg("Failed to extract data. Check API key and try again.");
+      // Show the actual error message
+      setErrorMsg(err.message || "Failed to extract data. Check API key and try again.");
     }
   };
 
@@ -85,12 +86,15 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
             <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${
                 status === AppStatus.SUCCESS ? 'bg-green-100 text-green-700' : 
                 status === AppStatus.LOADING ? 'bg-indigo-100 text-indigo-700' :
+                status === AppStatus.ERROR ? 'bg-red-100 text-red-700' :
                 'bg-slate-100 text-slate-600'
             }`}>
                 {status === AppStatus.LOADING && <Loader2 className="w-3 h-3 animate-spin" />}
                 {status === AppStatus.SUCCESS && <CheckCircle className="w-3 h-3" />}
+                {status === AppStatus.ERROR && <AlertCircle className="w-3 h-3" />}
                 {status === AppStatus.SUCCESS ? 'Extraction Complete' : 
                  status === AppStatus.LOADING ? 'Analyzing Report...' : 
+                 status === AppStatus.ERROR ? 'Error' :
                  'Ready to Process'}
             </span>
         </div>
@@ -133,7 +137,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
             </button>
           </div>
           {errorMsg && (
-             <div className="mt-2 p-3 bg-red-50 text-red-700 rounded-md text-sm flex items-center gap-2">
+             <div className="mt-2 p-3 bg-red-50 text-red-700 rounded-md text-sm flex items-center gap-2 border border-red-200">
                 <AlertCircle className="w-4 h-4" /> {errorMsg}
              </div>
           )}
