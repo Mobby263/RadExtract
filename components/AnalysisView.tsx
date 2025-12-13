@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { MergedRecord, ExtractedData, AppStatus } from '../types';
 import { extractDataFromReport } from '../services/geminiService';
-import { Loader2, CheckCircle, AlertCircle, FileText, BrainCircuit } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, FileText, BrainCircuit, Sparkles } from 'lucide-react';
 
 interface Props {
   patient: MergedRecord;
@@ -16,21 +16,27 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleExtract = async () => {
-    if (!reportText.trim()) return;
+  // Allow passing specific text (e.g., from paste event) or use current state
+  const handleExtract = async (textOverride?: string) => {
+    const textToProcess = textOverride ?? reportText;
+    
+    if (!textToProcess || !textToProcess.trim()) {
+        setErrorMsg("Please enter report text first.");
+        return;
+    }
     
     setStatus(AppStatus.LOADING);
     setErrorMsg('');
     
     try {
-      const result = await extractDataFromReport(reportText);
+      const result = await extractDataFromReport(textToProcess);
       setData(result);
       setStatus(AppStatus.SUCCESS);
       
-      // Auto-save loosely
+      // Save results
       onUpdate({
         ...patient,
-        radiologyReportText: reportText,
+        radiologyReportText: textToProcess,
         extractedData: result,
         extractionStatus: 'REVIEWED'
       });
@@ -38,6 +44,16 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
       console.error(err);
       setStatus(AppStatus.ERROR);
       setErrorMsg("Failed to extract data. Check API key and try again.");
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData('text');
+    // If the text area is mostly empty and we paste a significant amount of text,
+    // we assume it's a new report and trigger extraction automatically.
+    if (reportText.trim().length < 50 && pastedText.length > 50) {
+        // Trigger extraction with the pasted text
+        handleExtract(pastedText);
     }
   };
 
@@ -66,10 +82,16 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
           </h2>
         </div>
         <div className="flex gap-2">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                status === AppStatus.SUCCESS ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+            <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${
+                status === AppStatus.SUCCESS ? 'bg-green-100 text-green-700' : 
+                status === AppStatus.LOADING ? 'bg-indigo-100 text-indigo-700' :
+                'bg-slate-100 text-slate-600'
             }`}>
-                {status === AppStatus.SUCCESS ? 'Extraction Complete' : 'Ready to Process'}
+                {status === AppStatus.LOADING && <Loader2 className="w-3 h-3 animate-spin" />}
+                {status === AppStatus.SUCCESS && <CheckCircle className="w-3 h-3" />}
+                {status === AppStatus.SUCCESS ? 'Extraction Complete' : 
+                 status === AppStatus.LOADING ? 'Analyzing Report...' : 
+                 'Ready to Process'}
             </span>
         </div>
       </div>
@@ -81,22 +103,32 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
             <FileText className="w-4 h-4" />
             Radiology Report Text
           </label>
-          <div className="flex-1 relative">
+          <div className="flex-1 relative group">
             <textarea
-              className="w-full h-full p-4 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm leading-relaxed"
-              placeholder="Paste the full text of the radiology report here..."
+              className="w-full h-full p-4 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm leading-relaxed font-mono bg-slate-50 focus:bg-white transition-colors"
+              placeholder="Paste the full text of the radiology report here. Data extraction will start automatically..."
               value={reportText}
               onChange={(e) => setReportText(e.target.value)}
+              onPaste={handlePaste}
             />
+            {status === AppStatus.IDLE && !reportText && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                    <div className="flex flex-col items-center text-slate-400">
+                        <FileText className="w-12 h-12 mb-2" />
+                        <span className="text-sm font-medium">Paste Report to Analyze</span>
+                    </div>
+                </div>
+            )}
+            
             <button
-              onClick={handleExtract}
+              onClick={() => handleExtract()}
               disabled={status === AppStatus.LOADING || !reportText}
-              className="absolute bottom-4 right-4 bg-indigo-600 text-white px-4 py-2 rounded-md shadow-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+              className="absolute bottom-4 right-4 bg-indigo-600 text-white px-4 py-2 rounded-md shadow-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all z-10"
             >
               {status === AppStatus.LOADING ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</>
               ) : (
-                <><BrainCircuit className="w-4 h-4" /> Extract Data</>
+                <><BrainCircuit className="w-4 h-4" /> {data ? 'Re-analyze' : 'Extract Data'}</>
               )}
             </button>
           </div>
@@ -108,19 +140,38 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
         </div>
 
         {/* Right: Extracted Data Form */}
-        <div className="w-1/2 overflow-y-auto pr-2">
-          <div className="bg-slate-50 p-6 rounded-lg border border-slate-200">
+        <div className="w-1/2 overflow-y-auto pr-2 scroll-smooth">
+          <div className={`bg-white p-6 rounded-lg border transition-all ${status === AppStatus.LOADING ? 'border-indigo-200 shadow-indigo-100 shadow-lg' : 'border-slate-200'}`}>
             <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              {status === AppStatus.LOADING ? (
+                 <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse" />
+              ) : (
+                 <CheckCircle className="w-5 h-5 text-green-600" />
+              )}
               Extracted Variables
             </h3>
             
-            {!data ? (
-              <div className="text-center py-12 text-slate-400">
-                <p>Paste a report and click "Extract Data" to see results here.</p>
+            {!data && status !== AppStatus.LOADING && (
+              <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg">
+                <BrainCircuit className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p>Paste a report to automatically populate these fields.</p>
               </div>
-            ) : (
-              <div className="space-y-8">
+            )}
+
+            {status === AppStatus.LOADING && !data && (
+                <div className="space-y-4 animate-pulse">
+                    <div className="h-4 bg-slate-100 rounded w-1/3 mb-6"></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="h-10 bg-slate-100 rounded"></div>
+                        <div className="h-10 bg-slate-100 rounded"></div>
+                        <div className="h-10 bg-slate-100 rounded"></div>
+                        <div className="h-10 bg-slate-100 rounded"></div>
+                    </div>
+                </div>
+            )}
+
+            {data && (
+              <div className={`space-y-8 transition-opacity duration-500 ${status === AppStatus.LOADING ? 'opacity-50' : 'opacity-100'}`}>
                 
                 {/* Clinical Information Section */}
                 <div className="space-y-3">
@@ -130,7 +181,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                     <div className="col-span-2">
                         <label className="block text-xs font-medium text-slate-500 mb-1">Injury Mechanism</label>
                         <select 
-                            className="w-full p-2 border border-slate-300 rounded text-sm bg-white"
+                            className="w-full p-2 border border-slate-300 rounded text-sm bg-white hover:border-indigo-300 transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                             value={data.injury_mechanism}
                             onChange={(e) => handleFieldChange('injury_mechanism', parseInt(e.target.value))}
                         >
@@ -145,7 +196,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                         <label className="block text-xs font-medium text-slate-500 mb-1">GCS</label>
                         <input 
                             type="text" 
-                            className="w-full p-2 border border-slate-300 rounded text-sm"
+                            className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                             placeholder="e.g. 15"
                             value={data.gcs}
                             onChange={(e) => handleFieldChange('gcs', e.target.value)}
@@ -198,7 +249,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                             <label className="block text-xs font-medium text-slate-500 mb-1">Specify Other</label>
                             <input 
                                 type="text" 
-                                className="w-full p-2 border border-slate-300 rounded text-sm bg-indigo-50"
+                                className="w-full p-2 border border-slate-300 rounded text-sm bg-indigo-50 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                                 placeholder="e.g. Basilar Artery"
                                 value={data.vessel_other_specify}
                                 onChange={(e) => handleFieldChange('vessel_other_specify', e.target.value)}
@@ -210,7 +261,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                     <label className="block text-xs font-medium text-slate-500 mb-1">Vascular Comments</label>
                     <input 
                         type="text" 
-                        className="w-full p-2 border border-slate-300 rounded text-sm"
+                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                         value={data.vascular_report_comments}
                         onChange={(e) => handleFieldChange('vascular_report_comments', e.target.value)}
                     />
@@ -225,7 +276,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                          <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Biffl Grade</label>
                              <select 
-                                className="w-full p-2 border border-slate-300 rounded text-sm bg-white"
+                                className="w-full p-2 border border-slate-300 rounded text-sm bg-white hover:border-indigo-300 transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                                 value={data.biffl_grade}
                                 onChange={(e) => handleFieldChange('biffl_grade', e.target.value)}
                             >
@@ -241,7 +292,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                         <label className="block text-xs font-medium text-slate-500 mb-1">Grading Comments</label>
                         <input 
                             type="text" 
-                            className="w-full p-2 border border-slate-300 rounded text-sm"
+                            className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                             value={data.biffl_grade_comments || ''}
                             onChange={(e) => handleFieldChange('biffl_grade_comments', e.target.value)}
                         />
@@ -256,11 +307,11 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                          <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Details</label>
                             <select 
-                                className="w-full p-2 border border-slate-300 rounded text-sm bg-white"
+                                className="w-full p-2 border border-slate-300 rounded text-sm bg-white hover:border-indigo-300 transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                                 value={data.brain_pathology_details}
                                 onChange={(e) => handleFieldChange('brain_pathology_details', parseInt(e.target.value))}
                             >
-                                <option value={0}>None</option>
+                                <option value={0}>None (0)</option>
                                 <option value={1}>Ischemia (1)</option>
                                 <option value={2}>Hemorrhage (2)</option>
                                 <option value={3}>N/A (3)</option>
@@ -271,7 +322,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                     <label className="block text-xs font-medium text-slate-500 mb-1">Brain Comments</label>
                     <input 
                         type="text" 
-                        className="w-full p-2 border border-slate-300 rounded text-sm"
+                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                         value={data.brain_pathology_comments}
                         onChange={(e) => handleFieldChange('brain_pathology_comments', e.target.value)}
                     />
@@ -293,27 +344,27 @@ const StatusSelect: React.FC<{ label: string, value: number, onChange: (v: numbe
         <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
         <div className="flex bg-white rounded-md border border-slate-300 overflow-hidden">
             <button 
-                className={`flex-1 py-1 text-xs font-medium transition-colors ${value === 1 ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`flex-1 py-1 text-xs font-medium transition-colors focus:outline-none focus:bg-indigo-50 ${value === 1 ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
                 onClick={() => onChange(1)}
-                title="Yes"
+                title="Yes (1)"
             >
-                Yes
+                Yes (1)
             </button>
             <div className="w-px bg-slate-300"></div>
             <button 
-                className={`flex-1 py-1 text-xs font-medium transition-colors ${value === 0 ? 'bg-slate-200 text-slate-800' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`flex-1 py-1 text-xs font-medium transition-colors focus:outline-none focus:bg-slate-100 ${value === 0 ? 'bg-slate-200 text-slate-800 hover:bg-slate-300' : 'text-slate-600 hover:bg-slate-50'}`}
                 onClick={() => onChange(0)}
-                title="No"
+                title="No (0)"
             >
-                No
+                No (0)
             </button>
             <div className="w-px bg-slate-300"></div>
              <button 
-                className={`flex-1 py-1 text-xs font-medium transition-colors ${value === 2 ? 'bg-slate-100 text-slate-400' : 'text-slate-400 hover:bg-slate-50'}`}
+                className={`flex-1 py-1 text-xs font-medium transition-colors focus:outline-none focus:bg-slate-100 ${value === 2 ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'text-slate-400 hover:bg-slate-50'}`}
                 onClick={() => onChange(2)}
-                title="Not Applicable"
+                title="Not Applicable (2)"
             >
-                N/A
+                N/A (2)
             </button>
         </div>
     </div>

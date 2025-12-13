@@ -19,10 +19,11 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
     }
   };
 
+  // Render raw codes 1, 0, 2 for data sheet clarity
   const renderStatus = (val: number | undefined) => {
-    if (val === 1) return <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold">YES</span>;
-    if (val === 0) return <span className="text-slate-400 text-xs">No</span>;
-    if (val === 2) return <span className="text-slate-300 text-xs italic">N/A</span>;
+    if (val === 1) return <span className="bg-green-100 text-green-700 border border-green-200 px-2 py-0.5 rounded text-xs font-mono font-bold">1</span>;
+    if (val === 0) return <span className="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded text-xs font-mono">0</span>;
+    if (val === 2) return <span className="text-slate-300 font-mono text-xs">2</span>;
     return <span className="text-slate-200">-</span>;
   };
 
