@@ -43,8 +43,26 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
     } catch (err: any) {
       console.error(err);
       setStatus(AppStatus.ERROR);
-      // Show the actual error message
-      setErrorMsg(err.message || "Failed to extract data. Check API key and try again.");
+      
+      // Robust error message extraction
+      let msg = "Failed to extract data. Check API key and try again.";
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (typeof err === 'string') {
+        msg = err;
+      } else if (err && typeof err === 'object') {
+        // Try to stringify if it's an object (like a raw API response error)
+        try {
+            msg = JSON.stringify(err);
+            // If it's too long, truncate or just show specific fields if known, 
+            // but for debugging, full JSON is helpful.
+            if (msg === '{}') msg = "Unknown error occurred (empty object).";
+        } catch (e) {
+            msg = "Unknown error occurred.";
+        }
+      }
+      
+      setErrorMsg(msg);
     }
   };
 
@@ -137,8 +155,9 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
             </button>
           </div>
           {errorMsg && (
-             <div className="mt-2 p-3 bg-red-50 text-red-700 rounded-md text-sm flex items-center gap-2 border border-red-200">
-                <AlertCircle className="w-4 h-4" /> {errorMsg}
+             <div className="mt-2 p-3 bg-red-50 text-red-700 rounded-md text-sm flex items-start gap-2 border border-red-200 break-words overflow-y-auto max-h-32">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> 
+                <span>{errorMsg}</span>
              </div>
           )}
         </div>

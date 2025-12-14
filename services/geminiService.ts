@@ -65,8 +65,9 @@ const extractionSchema: Schema = {
 };
 
 export const extractDataFromReport = async (reportText: string): Promise<ExtractedData> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing.");
+  // Debug check: This ensures the env var is actually loaded
+  if (!process.env.API_KEY || process.env.API_KEY.includes("PASTE_YOUR_API_KEY")) {
+    throw new Error("API Key is missing or invalid. Please check your .env file and restart the server.");
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
