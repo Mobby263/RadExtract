@@ -22,13 +22,13 @@ export interface PatientRecord {
 }
 
 // Represents the data extracted from the Radiology Report
-// Standard for Boolean-like fields: 0=No, 1=Yes, 2=N/A (Not Applicable)
+// Standard for Boolean-like fields: 0=No, 1=Yes, 9=N/A, 999=Missing
 export interface ExtractedData {
   // New Variable
-  injury_mechanism: number; // 1=Strangulation, 2=Hanging, 0=Other/Unknown, 3=N/A
+  injury_mechanism: number; // 1=Strangulation, 2=Hanging, 0=Other/Unknown, 9=N/A, 999=Missing
 
   // Fractures
-  fractures: number; 
+  fractures: number; // 9=N/A, 999=Missing
   fractures_cspine: number;
   fractures_calvarium: number;
   fractures_skull_base: number;
@@ -42,25 +42,25 @@ export interface ExtractedData {
   vessel_carotid: number;
   vessel_vertebral: number;
   vessel_internal_jugular: number;
-  vessel_other: number; // 0=No, 1=Yes, 2=N/A
+  vessel_other: number; // 0=No, 1=Yes, 9=N/A, 999=Missing
   vessel_other_specify: string;
   vascular_report_comments: string;
 
   // Biffl Grading
-  biffl_grading_used: number;
+  biffl_grading_used: number; // 9=N/A, 999=Missing
   biffl_grade: string;
   biffl_grade_comments: string;
   reviewed_biffl_grade: string;
 
   // Brain Pathology
-  brain_pathology: number;
-  brain_pathology_details: number; // 0=None, 1=Ischemia, 2=Hemorrhage, 3=N/A
+  brain_pathology: number; // 9=N/A, 999=Missing
+  brain_pathology_details: number; // 0=None, 1=Ischemia, 2=Hemorrhage, 9=N/A, 999=Missing
   brain_pathology_comments: string;
 
   // Clinical History & Status
-  ipv_history: number; // Intimate partner violence history
+  ipv_history: number; // 1=Yes, 0=No, 9=N/A, 999=Missing
   gcs: string; // Glasgow Coma Scale
-  intubated: number; 
+  intubated: number; // 9=N/A, 999=Missing
 
   // Clinical Findings (Prefixes removed)
   soft_tissue_injury: number;

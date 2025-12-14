@@ -211,7 +211,8 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                             <option value={0}>Other / Unknown (0)</option>
                             <option value={1}>Strangulation (1)</option>
                             <option value={2}>Hanging (2)</option>
-                            <option value={3}>N/A (3)</option>
+                            <option value={9}>N/A (9)</option>
+                            <option value={999}>Missing (999)</option>
                         </select>
                     </div>
 
@@ -219,7 +220,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                         <label className="block text-xs font-medium text-slate-500 mb-1">GCS</label>
                         <input 
                             type="text" 
-                            className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
+                            className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                             placeholder="e.g. 15"
                             value={data.gcs}
                             onChange={(e) => handleFieldChange('gcs', e.target.value)}
@@ -284,7 +285,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                     <label className="block text-xs font-medium text-slate-500 mb-1">Vascular Comments</label>
                     <input 
                         type="text" 
-                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
+                        className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                         value={data.vascular_report_comments}
                         onChange={(e) => handleFieldChange('vascular_report_comments', e.target.value)}
                     />
@@ -315,7 +316,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                         <label className="block text-xs font-medium text-slate-500 mb-1">Grading Comments</label>
                         <input 
                             type="text" 
-                            className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
+                            className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                             value={data.biffl_grade_comments || ''}
                             onChange={(e) => handleFieldChange('biffl_grade_comments', e.target.value)}
                         />
@@ -337,7 +338,8 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                                 <option value={0}>None (0)</option>
                                 <option value={1}>Ischemia (1)</option>
                                 <option value={2}>Hemorrhage (2)</option>
-                                <option value={3}>N/A (3)</option>
+                                <option value={9}>N/A (9)</option>
+                                <option value={999}>Missing (999)</option>
                             </select>
                         </div>
                     </div>
@@ -345,7 +347,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                     <label className="block text-xs font-medium text-slate-500 mb-1">Brain Comments</label>
                     <input 
                         type="text" 
-                        className="w-full p-2 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
+                        className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
                         value={data.brain_pathology_comments}
                         onChange={(e) => handleFieldChange('brain_pathology_comments', e.target.value)}
                     />
@@ -361,7 +363,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
   );
 };
 
-// Helper sub-component for boolean 0/1/2 selection
+// Helper sub-component for boolean 0/1/9/999 selection
 const StatusSelect: React.FC<{ label: string, value: number, onChange: (v: number) => void }> = ({ label, value, onChange }) => (
     <div>
         <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
@@ -371,7 +373,7 @@ const StatusSelect: React.FC<{ label: string, value: number, onChange: (v: numbe
                 onClick={() => onChange(1)}
                 title="Yes (1)"
             >
-                Yes (1)
+                Yes
             </button>
             <div className="w-px bg-slate-300"></div>
             <button 
@@ -379,15 +381,23 @@ const StatusSelect: React.FC<{ label: string, value: number, onChange: (v: numbe
                 onClick={() => onChange(0)}
                 title="No (0)"
             >
-                No (0)
+                No
             </button>
             <div className="w-px bg-slate-300"></div>
              <button 
-                className={`flex-1 py-1 text-xs font-medium transition-colors focus:outline-none focus:bg-slate-100 ${value === 2 ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'text-slate-400 hover:bg-slate-50'}`}
-                onClick={() => onChange(2)}
-                title="Not Applicable (2)"
+                className={`flex-1 py-1 text-xs font-medium transition-colors focus:outline-none focus:bg-slate-100 ${value === 9 ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                onClick={() => onChange(9)}
+                title="Not Applicable (9)"
             >
-                N/A (2)
+                N/A
+            </button>
+            <div className="w-px bg-slate-300"></div>
+             <button 
+                className={`flex-1 py-1 text-xs font-medium transition-colors focus:outline-none focus:bg-purple-100 ${value === 999 ? 'bg-purple-100 text-purple-600 hover:bg-purple-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                onClick={() => onChange(999)}
+                title="Missing (999)"
+            >
+                Msng
             </button>
         </div>
     </div>
