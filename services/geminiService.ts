@@ -65,7 +65,9 @@ const extractionSchema: Schema = {
   ]
 };
 
-export const extractDataFromReport = async (reportText: string): Promise<ExtractedData> => {
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+export const extractDataFromReport = async (reportText: string, retries = 3): Promise<ExtractedData> => {
   // Debug check: This ensures the env var is actually loaded
   if (!process.env.API_KEY || process.env.API_KEY.includes("PASTE_YOUR_API_KEY")) {
     throw new Error("API Key is missing or invalid. Please check your .env file and restart the server.");
@@ -118,7 +120,16 @@ export const extractDataFromReport = async (reportText: string): Promise<Extract
     // Merge with empty to ensure all keys exist even if AI omits optional ones
     return { ...EMPTY_EXTRACTION, ...parsed };
 
-  } catch (error) {
+  } catch (error: any) {
+    // Retry Logic for Rate Limits (429) or Server Errors (503)
+    const isRetryable = error.message?.includes('429') || error.message?.includes('503') || error.status === 429 || error.status === 503;
+    
+    if (isRetryable && retries > 0) {
+        console.warn(`Gemini API rate limit/error hit. Retrying in ${(4 - retries) * 2} seconds... (${retries} attempts left)`);
+        await delay((4 - retries) * 2000); // Exponential backoff: 2s, 4s, 6s
+        return extractDataFromReport(reportText, retries - 1);
+    }
+
     console.error("Extraction error:", error);
     throw error;
   }

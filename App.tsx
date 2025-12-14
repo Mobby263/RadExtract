@@ -18,7 +18,6 @@ const App: React.FC = () => {
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   // Load initial CSV or updated data from Uploader
-  // UPDATED: Now merges incoming data with existing data (Upsert logic)
   const handleDataLoaded = (incomingRecords: PatientRecord[]) => {
     setPatientData(prevData => {
         const nextData = [...prevData];
@@ -29,16 +28,12 @@ const App: React.FC = () => {
             
             if (index >= 0) {
                 // UPDATE existing record
-                // We preserve extracted data and status, but allow updating patient details 
-                // and attaching new report text if provided in this batch.
                 const existing = nextData[index];
                 nextData[index] = {
                     ...existing,
                     ...incoming,
-                    // Only overwrite report text if the new incoming record actually has it (e.g. from folder upload)
                     radiologyReportText: (incoming as MergedRecord).radiologyReportText || existing.radiologyReportText,
                     reportFilename: (incoming as MergedRecord).reportFilename || existing.reportFilename,
-                    // Create date/Age might be updated from CSV, but we keep extraction results
                     extractedData: existing.extractedData,
                     extractionStatus: existing.extractionStatus,
                     extractionError: existing.extractionError
@@ -58,26 +53,23 @@ const App: React.FC = () => {
     setView('LIST');
   };
 
-  // Select a patient for analysis
   const handleSelectPatient = (id: string) => {
-    if (isBatchProcessing) return; // Disable selection during batch
+    if (isBatchProcessing) return; 
     setSelectedPatientId(id);
     setView('DETAIL');
   };
 
-  // Update a single patient record (after AI extraction or manual edit)
   const handleUpdatePatient = (updated: MergedRecord) => {
     setPatientData(prev => prev.map(p => p.id === updated.id ? updated : p));
   };
 
-  // --- Batch Processing Logic ---
+  // --- Optimized Batch Processing Logic ---
   const handleBatchProcess = async () => {
     if (isBatchProcessing) {
-        setIsBatchProcessing(false); // Stop requested
+        setIsBatchProcessing(false); // Stop requested logic would need AbortController, simplified here to just flag
         return;
     }
 
-    // Find all patients that have report text but haven't been extracted OR failed previously
     const queue = patientData.filter(p => 
         p.radiologyReportText && 
         (p.extractionStatus === 'PENDING' || p.extractionStatus === 'ERROR')
@@ -91,40 +83,69 @@ const App: React.FC = () => {
     setIsBatchProcessing(true);
     setBatchProgress({ current: 0, total: queue.length });
 
-    for (let i = 0; i < queue.length; i++) {
-        // If user navigated away or component unmounted, stop might be tricky without ref
-        // checking !isBatchProcessing here won't work due to closure, so we just run the queue
+    // Configuration
+    const BATCH_SIZE = 5; // Number of concurrent requests
+    
+    // Process in chunks
+    for (let i = 0; i < queue.length; i += BATCH_SIZE) {
+        // If user cancelled (simple check between batches)
+        // Note: In a real React app with strict mode, we'd use a ref for isBatchProcessing, 
+        // but here we rely on the component sticking around.
         
-        const patient = queue[i];
+        const chunk = queue.slice(i, i + BATCH_SIZE);
         
-        try {
-            // Call AI
-            const result = await extractDataFromReport(patient.radiologyReportText!);
-            
-            // Update State on Success
-            handleUpdatePatient({
-                ...patient,
-                extractedData: result,
-                extractionStatus: 'REVIEWED', // or EXTRACTED
-                extractionError: undefined // Clear error
-            });
+        // Map chunk to array of promises
+        const promises = chunk.map(async (patient) => {
+            try {
+                const result = await extractDataFromReport(patient.radiologyReportText!);
+                return {
+                    id: patient.id,
+                    success: true,
+                    data: result
+                };
+            } catch (err: any) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                return {
+                    id: patient.id,
+                    success: false,
+                    error: errorMessage
+                };
+            }
+        });
 
-            // Small delay to prevent rate limiting issues with Gemini API
-            await new Promise(resolve => setTimeout(resolve, 1000)); 
+        // Wait for all items in this chunk to finish
+        const results = await Promise.all(promises);
 
-        } catch (err: any) {
-            console.error(`Error processing ${patient.id}:`, err);
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            
-            // Update State on Error so user sees it in table
-            handleUpdatePatient({
-                ...patient,
-                extractionStatus: 'ERROR',
-                extractionError: errorMessage
+        // Bulk Update State (Much faster rendering performance than updating one by one)
+        setPatientData(prevData => {
+            const nextData = [...prevData];
+            results.forEach(res => {
+                const idx = nextData.findIndex(p => p.id === res.id);
+                if (idx !== -1) {
+                    if (res.success) {
+                        nextData[idx] = {
+                            ...nextData[idx],
+                            extractedData: res.data as ExtractedData,
+                            extractionStatus: 'REVIEWED',
+                            extractionError: undefined
+                        };
+                    } else {
+                        nextData[idx] = {
+                            ...nextData[idx],
+                            extractionStatus: 'ERROR',
+                            extractionError: res.error as string
+                        };
+                    }
+                }
             });
-        }
-        
-        setBatchProgress(prev => ({ ...prev, current: i + 1 }));
+            return nextData;
+        });
+
+        // Update progress
+        setBatchProgress(prev => ({ 
+            ...prev, 
+            current: Math.min(prev.total, i + BATCH_SIZE) 
+        }));
     }
 
     setIsBatchProcessing(false);
@@ -134,7 +155,6 @@ const App: React.FC = () => {
   const handleExport = () => {
     if (patientData.length === 0) return;
 
-    // 1. Collect all headers (Patient info + Extracted Data keys)
     const patientKeys = Object.keys(patientData[0]).filter(k => k !== 'extractedData' && k !== 'radiologyReportText' && k !== 'extractionStatus' && k !== 'extractionError');
     
     const extractedKeys = [
@@ -157,18 +177,15 @@ const App: React.FC = () => {
 
     const headerRow = [...patientKeys, "Report_Filename", "Extraction_Error", ...extractedKeys].join(',');
 
-    // 2. Build rows
     const rows = patientData.map(p => {
         const pValues = patientKeys.map(k => `"${p[k] || ''}"`);
         const eData = p.extractedData as any || {};
         const eValues = extractedKeys.map(k => `"${eData[k] !== undefined ? eData[k] : ''}"`);
-        // Include error message in export so they can analyze failures
         return [...pValues, `"${p.reportFilename || ''}"`, `"${p.extractionError || ''}"`, ...eValues].join(',');
     });
 
     const csvContent = [headerRow, ...rows].join('\n');
 
-    // 3. Download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -179,7 +196,6 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
   
-  // Calculate counts for UI
   const pendingCount = patientData.filter(p => p.radiologyReportText && p.extractionStatus === 'PENDING').length;
   const errorCount = patientData.filter(p => p.extractionStatus === 'ERROR').length;
   const readyToRunCount = pendingCount + errorCount;
