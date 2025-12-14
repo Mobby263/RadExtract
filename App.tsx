@@ -4,14 +4,16 @@ import { PatientRecord, MergedRecord, ExtractedData } from './types';
 import { PatientUploader } from './components/PatientUploader';
 import { MasterTable } from './components/MasterTable';
 import { AnalysisView } from './components/AnalysisView';
+import { ErrorLog } from './components/ErrorLog';
 import { extractDataFromReport } from './services/geminiService';
-import { Stethoscope, Database, FileSpreadsheet, PlayCircle, StopCircle, Loader2, FileText, RefreshCw } from 'lucide-react';
+import { Stethoscope, Database, FileSpreadsheet, PlayCircle, StopCircle, Loader2, FileText, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
   const [patientData, setPatientData] = useState<MergedRecord[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [view, setView] = useState<'UPLOAD' | 'LIST' | 'DETAIL'>('UPLOAD');
+  const [showErrorLog, setShowErrorLog] = useState(false);
   
   // Batch Processing State
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
@@ -88,10 +90,6 @@ const App: React.FC = () => {
     
     // Process in chunks
     for (let i = 0; i < queue.length; i += BATCH_SIZE) {
-        // If user cancelled (simple check between batches)
-        // Note: In a real React app with strict mode, we'd use a ref for isBatchProcessing, 
-        // but here we rely on the component sticking around.
-        
         const chunk = queue.slice(i, i + BATCH_SIZE);
         
         // Map chunk to array of promises
@@ -280,18 +278,29 @@ const App: React.FC = () => {
                              <div>
                                  <h3 className="font-semibold text-slate-800">Ready to Process</h3>
                                  <p className="text-xs text-slate-500">
-                                    {pendingCount} new, {errorCount} failed. Ready for AI analysis.
+                                    {pendingCount} new, <span className={errorCount > 0 ? "text-red-600 font-bold" : ""}>{errorCount} failed</span>. Ready for AI analysis.
                                  </p>
                              </div>
                         </div>
-                        <button 
-                            onClick={handleBatchProcess}
-                            disabled={isBatchProcessing}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isBatchProcessing ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'}`}
-                        >
-                            {isBatchProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                            {isBatchProcessing ? 'Processing...' : (errorCount > 0 ? 'Retry Batch' : 'Run Batch Analysis')}
-                        </button>
+                        <div className="flex gap-2">
+                             {errorCount > 0 && (
+                                <button
+                                    onClick={() => setShowErrorLog(true)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-all"
+                                >
+                                    <AlertTriangle className="w-4 h-4" />
+                                    View Errors
+                                </button>
+                            )}
+                            <button 
+                                onClick={handleBatchProcess}
+                                disabled={isBatchProcessing}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isBatchProcessing ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'}`}
+                            >
+                                {isBatchProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                                {isBatchProcessing ? 'Processing...' : (errorCount > 0 ? 'Retry Batch' : 'Run Batch Analysis')}
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -310,6 +319,18 @@ const App: React.FC = () => {
                 patient={patientData.find(p => p.id === selectedPatientId)!}
                 onUpdate={handleUpdatePatient}
                 onBack={() => setView('LIST')}
+            />
+        )}
+        
+        {/* Error Log Modal */}
+        {showErrorLog && (
+            <ErrorLog 
+                errors={patientData.filter(p => p.extractionStatus === 'ERROR')}
+                onClose={() => setShowErrorLog(false)}
+                onRetry={() => {
+                    setShowErrorLog(false);
+                    handleBatchProcess();
+                }}
             />
         )}
       </main>
