@@ -1,7 +1,7 @@
 // components/MasterTable.tsx
 import React from 'react';
 import { MergedRecord } from '../types';
-import { Edit2, CheckCircle, Clock, AlertCircle, Download, FileText } from 'lucide-react';
+import { Edit2, CheckCircle, Clock, AlertCircle, Download, FileText, XCircle } from 'lucide-react';
 
 interface Props {
   data: MergedRecord[];
@@ -15,6 +15,7 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
     switch (row.extractionStatus) {
       case 'REVIEWED': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'EXTRACTED': return <AlertCircle className="w-4 h-4 text-amber-500" />;
+      case 'ERROR': return <XCircle className="w-4 h-4 text-red-500" />;
       default: 
         // If text is present but not extracted, show a document icon indicating "Ready"
         if (row.radiologyReportText) {
@@ -69,8 +70,16 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
             {data.map((row) => (
               <tr key={row.id} className="hover:bg-indigo-50 transition-colors">
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2" title={row.extractionStatus}>
+                  <div className="flex items-center gap-2 group relative" title={row.extractionError || row.extractionStatus}>
                     {getStatusIcon(row)}
+                    {row.extractionStatus === 'ERROR' && row.extractionError && (
+                        <div className="hidden group-hover:block absolute left-6 top-0 z-50 bg-slate-800 text-white text-xs p-2 rounded shadow-lg w-48 break-words pointer-events-none">
+                            {row.extractionError}
+                        </div>
+                    )}
+                    {row.extractionStatus === 'ERROR' && !row.extractionError && (
+                        <span className="text-xs text-red-500">Failed</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3 font-medium text-slate-900">{row.id}</td>
@@ -96,7 +105,7 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
                     onClick={() => onSelect(row.id)}
                     className="text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1"
                   >
-                    <Edit2 className="w-3 h-3" /> {row.extractionStatus === 'PENDING' ? 'Process' : 'Edit'}
+                    <Edit2 className="w-3 h-3" /> {row.extractionStatus === 'PENDING' || row.extractionStatus === 'ERROR' ? 'Process' : 'Edit'}
                   </button>
                 </td>
               </tr>

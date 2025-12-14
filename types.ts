@@ -81,6 +81,7 @@ export interface ExtractedData {
 export interface MergedRecord extends PatientRecord {
   radiologyReportText?: string;
   reportFilename?: string;
-  extractionStatus: 'PENDING' | 'EXTRACTED' | 'REVIEWED';
+  extractionStatus: 'PENDING' | 'EXTRACTED' | 'REVIEWED' | 'ERROR';
+  extractionError?: string;
   extractedData?: ExtractedData;
 }

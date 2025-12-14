@@ -5,7 +5,7 @@ import { PatientUploader } from './components/PatientUploader';
 import { MasterTable } from './components/MasterTable';
 import { AnalysisView } from './components/AnalysisView';
 import { extractDataFromReport } from './services/geminiService';
-import { Stethoscope, Database, FileSpreadsheet, PlayCircle, StopCircle, Loader2, FileText } from 'lucide-react';
+import { Stethoscope, Database, FileSpreadsheet, PlayCircle, StopCircle, Loader2, FileText, RefreshCw } from 'lucide-react';
 
 const App: React.FC = () => {
   // State
@@ -40,7 +40,8 @@ const App: React.FC = () => {
                     reportFilename: (incoming as MergedRecord).reportFilename || existing.reportFilename,
                     // Create date/Age might be updated from CSV, but we keep extraction results
                     extractedData: existing.extractedData,
-                    extractionStatus: existing.extractionStatus
+                    extractionStatus: existing.extractionStatus,
+                    extractionError: existing.extractionError
                 };
             } else {
                 // INSERT new record
@@ -76,11 +77,14 @@ const App: React.FC = () => {
         return;
     }
 
-    // Find all patients that have report text but haven't been extracted
-    const queue = patientData.filter(p => p.radiologyReportText && p.extractionStatus === 'PENDING');
+    // Find all patients that have report text but haven't been extracted OR failed previously
+    const queue = patientData.filter(p => 
+        p.radiologyReportText && 
+        (p.extractionStatus === 'PENDING' || p.extractionStatus === 'ERROR')
+    );
     
     if (queue.length === 0) {
-        alert("No pending records with report text found. Upload reports first.");
+        alert("No pending or failed records with report text found. Upload reports first.");
         return;
     }
 
@@ -88,33 +92,36 @@ const App: React.FC = () => {
     setBatchProgress({ current: 0, total: queue.length });
 
     for (let i = 0; i < queue.length; i++) {
-        // Check if user cancelled
-        // We use a functional state update check or ref technically, 
-        // but for simplicity in this loop we'll rely on the fact that 
-        // breaking the loop is hard without refs in React. 
-        // We will just run to completion or refresh.
+        // If user navigated away or component unmounted, stop might be tricky without ref
+        // checking !isBatchProcessing here won't work due to closure, so we just run the queue
         
         const patient = queue[i];
         
         try {
-            // Update status to 'Processing' visually? (Optional, skipping for speed)
-            
             // Call AI
             const result = await extractDataFromReport(patient.radiologyReportText!);
             
-            // Update State
+            // Update State on Success
             handleUpdatePatient({
                 ...patient,
                 extractedData: result,
-                extractionStatus: 'REVIEWED' // or EXTRACTED
+                extractionStatus: 'REVIEWED', // or EXTRACTED
+                extractionError: undefined // Clear error
             });
 
             // Small delay to prevent rate limiting issues with Gemini API
             await new Promise(resolve => setTimeout(resolve, 1000)); 
 
-        } catch (err) {
+        } catch (err: any) {
             console.error(`Error processing ${patient.id}:`, err);
-            // Optional: Mark as Error status
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            
+            // Update State on Error so user sees it in table
+            handleUpdatePatient({
+                ...patient,
+                extractionStatus: 'ERROR',
+                extractionError: errorMessage
+            });
         }
         
         setBatchProgress(prev => ({ ...prev, current: i + 1 }));
@@ -128,9 +135,8 @@ const App: React.FC = () => {
     if (patientData.length === 0) return;
 
     // 1. Collect all headers (Patient info + Extracted Data keys)
-    const patientKeys = Object.keys(patientData[0]).filter(k => k !== 'extractedData' && k !== 'radiologyReportText' && k !== 'extractionStatus');
-    // We use a sample extracted object to get keys, or predefined keys
-    // Updated keys list after renaming
+    const patientKeys = Object.keys(patientData[0]).filter(k => k !== 'extractedData' && k !== 'radiologyReportText' && k !== 'extractionStatus' && k !== 'extractionError');
+    
     const extractedKeys = [
         "injury_mechanism",
         "ipv_history", "gcs", "intubated", 
@@ -149,14 +155,15 @@ const App: React.FC = () => {
         "brain_pathology", "brain_pathology_details", "brain_pathology_comments"
     ];
 
-    const headerRow = [...patientKeys, "Report_Filename", ...extractedKeys].join(',');
+    const headerRow = [...patientKeys, "Report_Filename", "Extraction_Error", ...extractedKeys].join(',');
 
     // 2. Build rows
     const rows = patientData.map(p => {
         const pValues = patientKeys.map(k => `"${p[k] || ''}"`);
         const eData = p.extractedData as any || {};
         const eValues = extractedKeys.map(k => `"${eData[k] !== undefined ? eData[k] : ''}"`);
-        return [...pValues, `"${p.reportFilename || ''}"`, ...eValues].join(',');
+        // Include error message in export so they can analyze failures
+        return [...pValues, `"${p.reportFilename || ''}"`, `"${p.extractionError || ''}"`, ...eValues].join(',');
     });
 
     const csvContent = [headerRow, ...rows].join('\n');
@@ -171,6 +178,11 @@ const App: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
+  
+  // Calculate counts for UI
+  const pendingCount = patientData.filter(p => p.radiologyReportText && p.extractionStatus === 'PENDING').length;
+  const errorCount = patientData.filter(p => p.extractionStatus === 'ERROR').length;
+  const readyToRunCount = pendingCount + errorCount;
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900 flex flex-col">
@@ -243,16 +255,16 @@ const App: React.FC = () => {
         {view === 'LIST' && (
             <div className="h-full flex flex-col">
                 {/* Batch Action Bar */}
-                {patientData.some(p => p.radiologyReportText && p.extractionStatus === 'PENDING') && (
+                {readyToRunCount > 0 && (
                     <div className="mb-4 bg-white p-4 rounded-lg border border-indigo-100 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-2">
-                             <div className="bg-indigo-50 p-2 rounded-full text-indigo-600">
+                             <div className={`p-2 rounded-full ${errorCount > 0 ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
                                 <FileText className="w-5 h-5" />
                              </div>
                              <div>
                                  <h3 className="font-semibold text-slate-800">Ready to Process</h3>
                                  <p className="text-xs text-slate-500">
-                                    {patientData.filter(p => p.radiologyReportText && p.extractionStatus === 'PENDING').length} reports linked and ready for AI analysis.
+                                    {pendingCount} new, {errorCount} failed. Ready for AI analysis.
                                  </p>
                              </div>
                         </div>
@@ -262,7 +274,7 @@ const App: React.FC = () => {
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isBatchProcessing ? 'bg-slate-100 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'}`}
                         >
                             {isBatchProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                            {isBatchProcessing ? 'Processing...' : 'Run Batch Analysis'}
+                            {isBatchProcessing ? 'Processing...' : (errorCount > 0 ? 'Retry Batch' : 'Run Batch Analysis')}
                         </button>
                     </div>
                 )}

@@ -13,8 +13,13 @@ interface Props {
 export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => {
   const [reportText, setReportText] = useState(patient.radiologyReportText || '');
   const [data, setData] = useState<ExtractedData | undefined>(patient.extractedData);
-  const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
-  const [errorMsg, setErrorMsg] = useState('');
+  
+  // Initialize status/error based on passed patient record
+  const [status, setStatus] = useState<AppStatus>(
+      patient.extractionStatus === 'ERROR' ? AppStatus.ERROR : 
+      patient.extractionStatus === 'REVIEWED' ? AppStatus.SUCCESS : AppStatus.IDLE
+  );
+  const [errorMsg, setErrorMsg] = useState(patient.extractionError || '');
 
   // Allow passing specific text (e.g., from paste event) or use current state
   const handleExtract = async (textOverride?: string) => {
@@ -38,7 +43,8 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
         ...patient,
         radiologyReportText: textToProcess,
         extractedData: result,
-        extractionStatus: 'REVIEWED'
+        extractionStatus: 'REVIEWED',
+        extractionError: undefined // Clear previous errors
       });
     } catch (err: any) {
       console.error(err);
@@ -54,8 +60,6 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
         // Try to stringify if it's an object (like a raw API response error)
         try {
             msg = JSON.stringify(err);
-            // If it's too long, truncate or just show specific fields if known, 
-            // but for debugging, full JSON is helpful.
             if (msg === '{}') msg = "Unknown error occurred (empty object).";
         } catch (e) {
             msg = "Unknown error occurred.";
@@ -63,6 +67,13 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
       }
       
       setErrorMsg(msg);
+      // We don't necessarily update the parent record here unless we want to persist the 'ERROR' status
+      // For now, let's persist it so it shows in the list if they go back
+      onUpdate({
+          ...patient,
+          extractionStatus: 'ERROR',
+          extractionError: msg
+      });
     }
   };
 
@@ -84,7 +95,8 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
       ...patient,
       radiologyReportText: reportText,
       extractedData: newData,
-      extractionStatus: 'REVIEWED'
+      extractionStatus: 'REVIEWED',
+      extractionError: undefined
     });
   };
 
