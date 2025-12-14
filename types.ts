@@ -80,6 +80,7 @@ export interface ExtractedData {
 // The combined object used for the final analysis sheet
 export interface MergedRecord extends PatientRecord {
   radiologyReportText?: string;
+  reportFilename?: string;
   extractionStatus: 'PENDING' | 'EXTRACTED' | 'REVIEWED';
   extractedData?: ExtractedData;
 }

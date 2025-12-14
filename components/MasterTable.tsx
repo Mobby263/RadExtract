@@ -1,7 +1,7 @@
 // components/MasterTable.tsx
 import React from 'react';
 import { MergedRecord } from '../types';
-import { Edit2, CheckCircle, Clock, AlertCircle, Download } from 'lucide-react';
+import { Edit2, CheckCircle, Clock, AlertCircle, Download, FileText } from 'lucide-react';
 
 interface Props {
   data: MergedRecord[];
@@ -11,11 +11,16 @@ interface Props {
 
 export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
   
-  const getStatusIcon = (status: string) => {
-    switch (status) {
+  const getStatusIcon = (row: MergedRecord) => {
+    switch (row.extractionStatus) {
       case 'REVIEWED': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'EXTRACTED': return <AlertCircle className="w-4 h-4 text-amber-500" />;
-      default: return <Clock className="w-4 h-4 text-slate-300" />;
+      default: 
+        // If text is present but not extracted, show a document icon indicating "Ready"
+        if (row.radiologyReportText) {
+            return <FileText className="w-4 h-4 text-indigo-500" />;
+        }
+        return <Clock className="w-4 h-4 text-slate-300" />;
     }
   };
 
@@ -52,7 +57,7 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
               <th className="px-4 py-3 border-b">Status</th>
               <th className="px-4 py-3 border-b">Study ID</th>
               <th className="px-4 py-3 border-b">Patient Name</th>
-              <th className="px-4 py-3 border-b">Age</th>
+              <th className="px-4 py-3 border-b">Report File</th>
               <th className="px-4 py-3 border-b">Time to Study</th>
               <th className="px-4 py-3 border-b text-center">Fracture?</th>
               <th className="px-4 py-3 border-b text-center">Vascular?</th>
@@ -65,12 +70,14 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
               <tr key={row.id} className="hover:bg-indigo-50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2" title={row.extractionStatus}>
-                    {getStatusIcon(row.extractionStatus)}
+                    {getStatusIcon(row)}
                   </div>
                 </td>
                 <td className="px-4 py-3 font-medium text-slate-900">{row.id}</td>
                 <td className="px-4 py-3">{row.name || '-'}</td>
-                <td className="px-4 py-3">{row.age || '-'}</td>
+                <td className="px-4 py-3 text-xs font-mono text-slate-500 truncate max-w-[150px]" title={row.reportFilename}>
+                    {row.reportFilename || <span className="text-slate-200 italic">No file</span>}
+                </td>
                 <td className="px-4 py-3 font-mono text-xs">{row.timeToStudy || '-'}</td>
                 
                 {/* Quick stats columns using renamed variables */}
