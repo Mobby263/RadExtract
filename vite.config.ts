@@ -9,8 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // This ensures process.env.API_KEY is replaced with the actual string during build
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // This ensures process.env.GEMINI_API_KEY is replaced with the actual string during build
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
     }
   };
 });

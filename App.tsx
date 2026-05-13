@@ -17,14 +17,20 @@ const App: React.FC = () => {
   
   // Batch Processing State
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const processingRef = React.useRef(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   // Load initial CSV or updated data from Uploader
   const handleDataLoaded = (incomingRecords: PatientRecord[]) => {
+    if (!incomingRecords || incomingRecords.length === 0) {
+        setPatientData([]);
+        setView('UPLOAD');
+        return;
+    }
+
     setPatientData(prevData => {
         const nextData = [...prevData];
-        let newCount = 0;
-
+        
         incomingRecords.forEach(incoming => {
             const index = nextData.findIndex(p => p.id === incoming.id);
             
@@ -46,7 +52,6 @@ const App: React.FC = () => {
                     ...incoming,
                     extractionStatus: 'PENDING'
                 });
-                newCount++;
             }
         });
         
@@ -56,7 +61,7 @@ const App: React.FC = () => {
   };
 
   const handleSelectPatient = (id: string) => {
-    if (isBatchProcessing) return; 
+    if (processingRef.current) return; 
     setSelectedPatientId(id);
     setView('DETAIL');
   };
@@ -68,7 +73,8 @@ const App: React.FC = () => {
   // --- Optimized Batch Processing Logic ---
   const handleBatchProcess = async () => {
     if (isBatchProcessing) {
-        setIsBatchProcessing(false); // Stop requested logic would need AbortController, simplified here to just flag
+        setIsBatchProcessing(false); 
+        processingRef.current = false;
         return;
     }
 
@@ -83,43 +89,30 @@ const App: React.FC = () => {
     }
 
     setIsBatchProcessing(true);
+    processingRef.current = true;
     setBatchProgress({ current: 0, total: queue.length });
 
     // Configuration
-    const BATCH_SIZE = 5; // Number of concurrent requests
-    
-    // Process in chunks
-    for (let i = 0; i < queue.length; i += BATCH_SIZE) {
-        const chunk = queue.slice(i, i + BATCH_SIZE);
+    const CONCURRENCY = 10; 
+    let activeTasks = 0;
+    let completedCount = 0;
+    let currentIndex = 0;
+
+    // Use a lookup map for O(1) indexing
+    const idToIndexMap = new Map(patientData.map((p, idx) => [p.id, idx]));
+
+    const resultsBuffer: any[] = [];
+    const flushBuffer = () => {
+        if (resultsBuffer.length === 0) return;
         
-        // Map chunk to array of promises
-        const promises = chunk.map(async (patient) => {
-            try {
-                const result = await extractDataFromReport(patient.radiologyReportText!);
-                return {
-                    id: patient.id,
-                    success: true,
-                    data: result
-                };
-            } catch (err: any) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                return {
-                    id: patient.id,
-                    success: false,
-                    error: errorMessage
-                };
-            }
-        });
+        const currentBatch = [...resultsBuffer];
+        resultsBuffer.length = 0;
 
-        // Wait for all items in this chunk to finish
-        const results = await Promise.all(promises);
-
-        // Bulk Update State (Much faster rendering performance than updating one by one)
         setPatientData(prevData => {
             const nextData = [...prevData];
-            results.forEach(res => {
-                const idx = nextData.findIndex(p => p.id === res.id);
-                if (idx !== -1) {
+            currentBatch.forEach(res => {
+                const idx = idToIndexMap.get(res.id);
+                if (idx !== undefined && idx !== -1) {
                     if (res.success) {
                         nextData[idx] = {
                             ...nextData[idx],
@@ -138,48 +131,94 @@ const App: React.FC = () => {
             });
             return nextData;
         });
+    };
 
-        // Update progress
-        setBatchProgress(prev => ({ 
-            ...prev, 
-            current: Math.min(prev.total, i + BATCH_SIZE) 
-        }));
+    const runTask = async (patient: MergedRecord) => {
+        if (!processingRef.current) return;
+        activeTasks++;
+        
+        try {
+            const result = await extractDataFromReport(patient.radiologyReportText!, patient.clinicInfo);
+            resultsBuffer.push({ id: patient.id, success: true, data: result });
+        } catch (err: any) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            resultsBuffer.push({ id: patient.id, success: false, error: errorMessage });
+        } finally {
+            activeTasks--;
+            completedCount++;
+            setBatchProgress(prev => ({ ...prev, current: completedCount }));
+            
+            // Flush buffer if it's getting large or if we're done
+            if (resultsBuffer.length >= 5 || completedCount === queue.length || !processingRef.current) {
+                flushBuffer();
+            }
+
+            // Start next task if any
+            if (currentIndex < queue.length && processingRef.current) {
+                runTask(queue[currentIndex++]);
+            }
+
+            // Check final completion
+            if (completedCount === queue.length || (!processingRef.current && activeTasks === 0)) {
+                setIsBatchProcessing(false);
+                processingRef.current = false;
+            }
+        }
+    };
+
+    // Initial batch start
+    for (let i = 0; i < Math.min(CONCURRENCY, queue.length); i++) {
+        if (!processingRef.current) break;
+        runTask(queue[i]);
+        currentIndex++;
     }
-
-    setIsBatchProcessing(false);
   };
 
   // Export Logic
   const handleExport = () => {
     if (patientData.length === 0) return;
 
-    const patientKeys = Object.keys(patientData[0]).filter(k => k !== 'extractedData' && k !== 'radiologyReportText' && k !== 'extractionStatus' && k !== 'extractionError');
+    // Filter out columns as requested (removed: name, timeToStudy, radiologyReportText, status, errors)
+    const patientKeys = Object.keys(patientData[0]).filter(k => 
+        k !== 'extractedData' && 
+        k !== 'radiologyReportText' && 
+        k !== 'extractionStatus' && 
+        k !== 'extractionError' &&
+        k !== 'name' &&
+        k !== 'reportFilename'
+    );
     
     const extractedKeys = [
-        "injury_mechanism",
-        "ipv_history", "gcs", "intubated", 
-        "soft_tissue_injury", "loc", "neuro_impaired",
-        "seizures", "neck_pain", "dysphagia", "hoarseness",
-        "bruising", "ligature", "swelling",
-        "subconj_hemorrhages", "c_spine_tenderness",
+        "gbv", "gcs", "intubated", 
+        "soft_tissue_injury", "neckpain", "dysphagia", "bruising", 
+        "ligature", "swelling", "subconj_hemorrhages", "cspine_tenderness",
+        "hoarseness", "focal_neuro", "limb_impaired", "loc", "seizures",
         
-        "fractures", "fractures_cspine", "fractures_calvarium", "fractures_skull_base",
-        "fractures_leforte", "fractures_cricoid", "fractures_hyoid", "fractures_larynx",
+        "rr_fractures", "rr_fractures_cspine", "rr_fractures_calvarium", "rr_fractures_skullbase",
+        "rr_fractures_leforte", "rr_fractures_cricoid", "rr_fractures_hyoid", "rr_fractures_larynx",
         
-        "vascular_injury", "vessel_carotid", "vessel_vertebral", "vessel_internal_jugular",
-        "vessel_other", "vessel_other_specify", "vascular_report_comments",
+        "rr_vascular_injury", "vessel_carotid", "vessel_vertebral",
+        "vessel_other", "vessel_other_specify", "rr_vessel_injured_report_comments",
         
-        "biffl_grading_used", "biffl_grade", "biffl_grade_comments", "reviewed_biffl_grade",
-        "brain_pathology", "brain_pathology_details", "brain_pathology_comments"
+        "rr_biffl_used", 
+        "rr_biffl_rt_carotid", "rr_biffl_lt_carotid", 
+        "rr_biffl_rt_vertebral", "rr_biffl_lt_vertebral",
+        "rr_reviewed_biffl_rt_carotid", "rr_reviewed_biffl_lt_carotid",
+        "rr_reviewed_biffl_rt_vertebral", "rr_reviewed_biffl_lt_vertebral",
+
+        "rr_brain_pathology", "rr_brain_pathology_type", "rr_brain_pathology_report_comments",
+        
+        "injury_mechanism"
     ];
 
-    const headerRow = [...patientKeys, "Report_Filename", "Extraction_Error", ...extractedKeys].join(',');
+    // Single Report_Filename column, removed extraction error column
+    const headerRow = [...patientKeys, "Report_Filename", ...extractedKeys].join(',');
 
     const rows = patientData.map(p => {
         const pValues = patientKeys.map(k => `"${p[k] || ''}"`);
         const eData = p.extractedData as any || {};
         const eValues = extractedKeys.map(k => `"${eData[k] !== undefined ? eData[k] : ''}"`);
-        return [...pValues, `"${p.reportFilename || ''}"`, `"${p.extractionError || ''}"`, ...eValues].join(',');
+        return [...pValues, `"${p.reportFilename || ''}"`, ...eValues].join(',');
     });
 
     const csvContent = [headerRow, ...rows].join('\n');

@@ -34,7 +34,7 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
     setErrorMsg('');
     
     try {
-      const result = await extractDataFromReport(textToProcess);
+      const result = await extractDataFromReport(textToProcess, patient.clinicInfo);
       setData(result);
       setStatus(AppStatus.SUCCESS);
       
@@ -208,11 +208,10 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
             {data && (
               <div className={`space-y-8 transition-opacity duration-500 ${status === AppStatus.LOADING ? 'opacity-50' : 'opacity-100'}`}>
                 
-                {/* Clinical Information Section */}
+                {/* Patient / Clinical Information Section */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Clinical Information</h4>
                   <div className="grid grid-cols-2 gap-4">
-                    {/* Injury Mechanism */}
                     <div className="col-span-2">
                         <label className="block text-xs font-medium text-slate-500 mb-1">Injury Mechanism</label>
                         <select 
@@ -239,54 +238,53 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                         />
                     </div>
                     <StatusSelect label="Intubated" value={data.intubated} onChange={(v) => handleFieldChange('intubated', v)} />
-                    <StatusSelect label="IPV History" value={data.ipv_history} onChange={(v) => handleFieldChange('ipv_history', v)} />
+                    <StatusSelect label="GBV History" value={data.gbv} onChange={(v) => handleFieldChange('gbv', v)} />
                     <StatusSelect label="Soft Tissue Inj." value={data.soft_tissue_injury} onChange={(v) => handleFieldChange('soft_tissue_injury', v)} />
-                    <StatusSelect label="LOC" value={data.loc} onChange={(v) => handleFieldChange('loc', v)} />
-                    <StatusSelect label="Neuro Impaired" value={data.neuro_impaired} onChange={(v) => handleFieldChange('neuro_impaired', v)} />
-                    <StatusSelect label="Seizures" value={data.seizures} onChange={(v) => handleFieldChange('seizures', v)} />
-                    <StatusSelect label="Neck Pain" value={data.neck_pain} onChange={(v) => handleFieldChange('neck_pain', v)} />
+                    <StatusSelect label="Neckpain" value={data.neckpain} onChange={(v) => handleFieldChange('neckpain', v)} />
                     <StatusSelect label="Dysphagia" value={data.dysphagia} onChange={(v) => handleFieldChange('dysphagia', v)} />
-                    <StatusSelect label="Hoarseness" value={data.hoarseness} onChange={(v) => handleFieldChange('hoarseness', v)} />
                     <StatusSelect label="Bruising" value={data.bruising} onChange={(v) => handleFieldChange('bruising', v)} />
-                    <StatusSelect label="Ligature Marks" value={data.ligature} onChange={(v) => handleFieldChange('ligature', v)} />
+                    <StatusSelect label="Ligature" value={data.ligature} onChange={(v) => handleFieldChange('ligature', v)} />
                     <StatusSelect label="Swelling" value={data.swelling} onChange={(v) => handleFieldChange('swelling', v)} />
-                    <StatusSelect label="Subconj. Hemorrh." value={data.subconj_hemorrhages} onChange={(v) => handleFieldChange('subconj_hemorrhages', v)} />
-                    <StatusSelect label="C-Spine Tenderness" value={data.c_spine_tenderness} onChange={(v) => handleFieldChange('c_spine_tenderness', v)} />
+                    <StatusSelect label="Subconj. Hemorrhages" value={data.subconj_hemorrhages} onChange={(v) => handleFieldChange('subconj_hemorrhages', v)} />
+                    <StatusSelect label="C-Spine Tenderness" value={data.cspine_tenderness} onChange={(v) => handleFieldChange('cspine_tenderness', v)} />
+                    <StatusSelect label="Hoarseness" value={data.hoarseness} onChange={(v) => handleFieldChange('hoarseness', v)} />
+                    <StatusSelect label="LOC" value={data.loc} onChange={(v) => handleFieldChange('loc', v)} />
+                    <StatusSelect label="Focal Neuro" value={data.focal_neuro} onChange={(v) => handleFieldChange('focal_neuro', v)} />
+                    <StatusSelect label="Limb Impaired" value={data.limb_impaired} onChange={(v) => handleFieldChange('limb_impaired', v)} />
+                    <StatusSelect label="Seizures" value={data.seizures} onChange={(v) => handleFieldChange('seizures', v)} />
                   </div>
                 </div>
 
                 {/* Fractures Section */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Fractures</h4>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Radiology: Fractures</h4>
                   <div className="grid grid-cols-2 gap-4">
-                    <StatusSelect label="Fractures (Any)" value={data.fractures} onChange={(v) => handleFieldChange('fractures', v)} />
-                    <StatusSelect label="C-Spine" value={data.fractures_cspine} onChange={(v) => handleFieldChange('fractures_cspine', v)} />
-                    <StatusSelect label="Calvarium" value={data.fractures_calvarium} onChange={(v) => handleFieldChange('fractures_calvarium', v)} />
-                    <StatusSelect label="Skull Base" value={data.fractures_skull_base} onChange={(v) => handleFieldChange('fractures_skull_base', v)} />
-                    <StatusSelect label="Le Fort" value={data.fractures_leforte} onChange={(v) => handleFieldChange('fractures_leforte', v)} />
-                    <StatusSelect label="Hyoid Bone" value={data.fractures_hyoid} onChange={(v) => handleFieldChange('fractures_hyoid', v)} />
-                    <StatusSelect label="Larynx" value={data.fractures_larynx} onChange={(v) => handleFieldChange('fractures_larynx', v)} />
-                    <StatusSelect label="Cricoid" value={data.fractures_cricoid} onChange={(v) => handleFieldChange('fractures_cricoid', v)} />
+                    <StatusSelect label="Any Fracture" value={data.rr_fractures} onChange={(v) => handleFieldChange('rr_fractures', v)} />
+                    <StatusSelect label="C-Spine" value={data.rr_fractures_cspine} onChange={(v) => handleFieldChange('rr_fractures_cspine', v)} />
+                    <StatusSelect label="Calvarium" value={data.rr_fractures_calvarium} onChange={(v) => handleFieldChange('rr_fractures_calvarium', v)} />
+                    <StatusSelect label="Skull Base" value={data.rr_fractures_skullbase} onChange={(v) => handleFieldChange('rr_fractures_skullbase', v)} />
+                    <StatusSelect label="Le Fort" value={data.rr_fractures_leforte} onChange={(v) => handleFieldChange('rr_fractures_leforte', v)} />
+                    <StatusSelect label="Cricoid" value={data.rr_fractures_cricoid} onChange={(v) => handleFieldChange('rr_fractures_cricoid', v)} />
+                    <StatusSelect label="Hyoid" value={data.rr_fractures_hyoid} onChange={(v) => handleFieldChange('rr_fractures_hyoid', v)} />
+                    <StatusSelect label="Larynx" value={data.rr_fractures_larynx} onChange={(v) => handleFieldChange('rr_fractures_larynx', v)} />
                   </div>
                 </div>
 
                 {/* Vascular Section */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Vascular Injury</h4>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Radiology: Vascular</h4>
                   <div className="grid grid-cols-2 gap-4">
-                    <StatusSelect label="Vascular Injury (Any)" value={data.vascular_injury} onChange={(v) => handleFieldChange('vascular_injury', v)} />
+                    <StatusSelect label="Vascular Injury" value={data.rr_vascular_injury} onChange={(v) => handleFieldChange('rr_vascular_injury', v)} />
                     <StatusSelect label="Carotid" value={data.vessel_carotid} onChange={(v) => handleFieldChange('vessel_carotid', v)} />
                     <StatusSelect label="Vertebral" value={data.vessel_vertebral} onChange={(v) => handleFieldChange('vessel_vertebral', v)} />
-                    <StatusSelect label="Internal Jugular" value={data.vessel_internal_jugular} onChange={(v) => handleFieldChange('vessel_internal_jugular', v)} />
                     <StatusSelect label="Other Vessel" value={data.vessel_other} onChange={(v) => handleFieldChange('vessel_other', v)} />
                     
                     {data.vessel_other === 1 && (
-                        <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Specify Other</label>
+                        <div className="col-span-2">
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Specify Other Vessel</label>
                             <input 
                                 type="text" 
                                 className="w-full p-2 border border-slate-300 rounded text-sm bg-indigo-50 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-                                placeholder="e.g. Basilar Artery"
                                 value={data.vessel_other_specify}
                                 onChange={(e) => handleFieldChange('vessel_other_specify', e.target.value)}
                             />
@@ -294,74 +292,73 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Vascular Comments</label>
-                    <input 
-                        type="text" 
-                        className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-                        value={data.vascular_report_comments}
-                        onChange={(e) => handleFieldChange('vascular_report_comments', e.target.value)}
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Vessel Report Comments</label>
+                    <textarea 
+                        className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none h-16"
+                        value={data.rr_vessel_injured_report_comments}
+                        onChange={(e) => handleFieldChange('rr_vessel_injured_report_comments', e.target.value)}
                     />
                   </div>
                 </div>
 
-                {/* Biffl Grade */}
+                {/* Biffl Section */}
                 <div className="space-y-3">
-                    <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Grading</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                         <StatusSelect label="Biffl Grading Used" value={data.biffl_grading_used} onChange={(v) => handleFieldChange('biffl_grading_used', v)} />
-                         <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Biffl Grade</label>
-                             <select 
-                                className="w-full p-2 border border-slate-300 rounded text-sm bg-white hover:border-indigo-300 transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-                                value={data.biffl_grade}
-                                onChange={(e) => handleFieldChange('biffl_grade', e.target.value)}
-                            >
-                                <option value="">Select Grade</option>
-                                <option value="I">I</option>
-                                <option value="II">II</option>
-                                <option value="III">III</option>
-                                <option value="IV">IV</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-1">Grading Comments</label>
-                        <input 
-                            type="text" 
-                            className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-                            value={data.biffl_grade_comments || ''}
-                            onChange={(e) => handleFieldChange('biffl_grade_comments', e.target.value)}
-                        />
-                    </div>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Biffl Grading</h4>
+                  <StatusSelect label="Biffl Used" value={data.rr_biffl_used} onChange={(v) => handleFieldChange('rr_biffl_used', v)} />
+                  
+                  <div className="grid grid-cols-2 gap-6 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="space-y-3">
+                          <label className="block text-xs font-bold text-indigo-800 uppercase tracking-tight">Carotid</label>
+                          <BifflField label="RT Carotid" value={data.rr_biffl_rt_carotid} onChange={(v) => handleFieldChange('rr_biffl_rt_carotid', v)} />
+                          <BifflField label="LT Carotid" value={data.rr_biffl_lt_carotid} onChange={(v) => handleFieldChange('rr_biffl_lt_carotid', v)} />
+                      </div>
+                      <div className="space-y-3">
+                          <label className="block text-xs font-bold text-indigo-800 uppercase tracking-tight">Vertebral</label>
+                          <BifflField label="RT Vertebral" value={data.rr_biffl_rt_vertebral} onChange={(v) => handleFieldChange('rr_biffl_rt_vertebral', v)} />
+                          <BifflField label="LT Vertebral" value={data.rr_biffl_lt_vertebral} onChange={(v) => handleFieldChange('rr_biffl_lt_vertebral', v)} />
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                      <div className="space-y-3">
+                          <label className="block text-xs font-bold text-indigo-900 uppercase tracking-tight">Reviewed Carotid</label>
+                          <BifflField label="RT Carotid (Rev)" value={data.rr_reviewed_biffl_rt_carotid} onChange={(v) => handleFieldChange('rr_reviewed_biffl_rt_carotid', v)} />
+                          <BifflField label="LT Carotid (Rev)" value={data.rr_reviewed_biffl_lt_carotid} onChange={(v) => handleFieldChange('rr_reviewed_biffl_lt_carotid', v)} />
+                      </div>
+                      <div className="space-y-3">
+                          <label className="block text-xs font-bold text-indigo-900 uppercase tracking-tight">Reviewed Vertebral</label>
+                          <BifflField label="RT Vertebral (Rev)" value={data.rr_reviewed_biffl_rt_vertebral} onChange={(v) => handleFieldChange('rr_reviewed_biffl_rt_vertebral', v)} />
+                          <BifflField label="LT Vertebral (Rev)" value={data.rr_reviewed_biffl_lt_vertebral} onChange={(v) => handleFieldChange('rr_reviewed_biffl_lt_vertebral', v)} />
+                      </div>
+                  </div>
                 </div>
 
-                 {/* Brain Pathology */}
-                 <div className="space-y-3">
-                    <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Brain Pathology</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                         <StatusSelect label="Pathology Present" value={data.brain_pathology} onChange={(v) => handleFieldChange('brain_pathology', v)} />
-                         <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Details</label>
-                            <select 
-                                className="w-full p-2 border border-slate-300 rounded text-sm bg-white hover:border-indigo-300 transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-                                value={data.brain_pathology_details}
-                                onChange={(e) => handleFieldChange('brain_pathology_details', parseInt(e.target.value))}
-                            >
-                                <option value={0}>None (0)</option>
-                                <option value={1}>Ischemia (1)</option>
-                                <option value={2}>Hemorrhage (2)</option>
-                                <option value={9}>N/A (9)</option>
-                                <option value={999}>Missing (999)</option>
-                            </select>
-                        </div>
-                    </div>
+                {/* Brain Pathology Section */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide border-b pb-1">Radiology: Brain Pathology</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <StatusSelect label="Any Pathology" value={data.rr_brain_pathology} onChange={(v) => handleFieldChange('rr_brain_pathology', v)} />
                     <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Brain Comments</label>
-                    <input 
-                        type="text" 
-                        className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
-                        value={data.brain_pathology_comments}
-                        onChange={(e) => handleFieldChange('brain_pathology_comments', e.target.value)}
+                        <label className="block text-xs font-medium text-slate-500 mb-1">Pathology Type</label>
+                        <select 
+                            className="w-full p-2 border border-slate-300 rounded text-sm bg-white hover:border-indigo-300 transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
+                            value={data.rr_brain_pathology_type}
+                            onChange={(e) => handleFieldChange('rr_brain_pathology_type', parseInt(e.target.value))}
+                        >
+                            <option value={0}>None (0)</option>
+                            <option value={1}>Ischemia (1)</option>
+                            <option value={2}>Hemorrhage (2)</option>
+                            <option value={9}>N/A (9)</option>
+                            <option value={999}>Missing (999)</option>
+                        </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Brain Report Comments</label>
+                    <textarea 
+                        className="w-full p-2 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none h-16"
+                        value={data.rr_brain_pathology_report_comments}
+                        onChange={(e) => handleFieldChange('rr_brain_pathology_report_comments', e.target.value)}
                     />
                   </div>
                 </div>
@@ -374,6 +371,25 @@ export const AnalysisView: React.FC<Props> = ({ patient, onUpdate, onBack }) => 
     </div>
   );
 };
+
+// Helper sub-component for Biffl Grade selection
+const BifflField: React.FC<{ label: string, value: string, onChange: (v: string) => void }> = ({ label, value, onChange }) => (
+    <div>
+        <label className="block text-[10px] font-semibold text-slate-400 mb-0.5 uppercase">{label}</label>
+        <select 
+            className="w-full p-1.5 border border-slate-300 rounded text-xs bg-white hover:border-indigo-300 transition-colors focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+        >
+            <option value="">None</option>
+            <option value="I">I</option>
+            <option value="II">II</option>
+            <option value="III">III</option>
+            <option value="IV">IV</option>
+            <option value="V">V</option>
+        </select>
+    </div>
+);
 
 // Helper sub-component for boolean 0/1/9/999 selection
 const StatusSelect: React.FC<{ label: string, value: number, onChange: (v: number) => void }> = ({ label, value, onChange }) => (

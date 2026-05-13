@@ -57,9 +57,7 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
             <tr>
               <th className="px-4 py-3 border-b">Status</th>
               <th className="px-4 py-3 border-b">Study ID</th>
-              <th className="px-4 py-3 border-b">Patient Name</th>
               <th className="px-4 py-3 border-b">Report File</th>
-              <th className="px-4 py-3 border-b">Time to Study</th>
               <th className="px-4 py-3 border-b text-center">Fracture?</th>
               <th className="px-4 py-3 border-b text-center">Vascular?</th>
               <th className="px-4 py-3 border-b text-center">Brain Path?</th>
@@ -83,21 +81,19 @@ export const MasterTable: React.FC<Props> = ({ data, onSelect, onExport }) => {
                   </div>
                 </td>
                 <td className="px-4 py-3 font-medium text-slate-900">{row.id}</td>
-                <td className="px-4 py-3">{row.name || '-'}</td>
                 <td className="px-4 py-3 text-xs font-mono text-slate-500 truncate max-w-[150px]" title={row.reportFilename}>
                     {row.reportFilename || <span className="text-slate-200 italic">No file</span>}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs">{row.timeToStudy || '-'}</td>
                 
                 {/* Quick stats columns using renamed variables */}
                 <td className="px-4 py-3 text-center">
-                    {renderStatus(row.extractedData?.fractures)}
+                    {renderStatus(row.extractedData?.rr_fractures)}
                 </td>
                 <td className="px-4 py-3 text-center">
-                    {renderStatus(row.extractedData?.vascular_injury)}
+                    {renderStatus(row.extractedData?.rr_vascular_injury)}
                 </td>
                  <td className="px-4 py-3 text-center">
-                    {renderStatus(row.extractedData?.brain_pathology)}
+                    {renderStatus(row.extractedData?.rr_brain_pathology)}
                 </td>
 
                 <td className="px-4 py-3 text-right">

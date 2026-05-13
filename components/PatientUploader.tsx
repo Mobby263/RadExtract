@@ -14,39 +14,24 @@ export const PatientUploader: React.FC<Props> = ({ onDataLoaded, existingData })
   const [inputText, setInputText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [localRecords, setLocalRecords] = useState<PatientRecord[]>(existingData || []);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Helper to calculate age
-  const calculateAge = (dobInput: any, examInput: any): number | string => {
-    if (!dobInput || !examInput) return '';
+  const calculateAge = (dobInput: any): number | string => {
+    if (!dobInput) return '';
     const dob = new Date(dobInput);
-    const exam = new Date(examInput);
-    if (isNaN(dob.getTime()) || isNaN(exam.getTime())) return '';
+    if (isNaN(dob.getTime())) return '';
     
-    let age = exam.getFullYear() - dob.getFullYear();
-    const m = exam.getMonth() - dob.getMonth();
-    if (m < 0 || (m === 0 && exam.getDate() < dob.getDate())) {
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const m = now.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) {
       age--;
     }
     return age >= 0 ? age : ''; 
-  };
-
-  const calculateTimeToStudy = (startInput: any, endInput: any): string => {
-    if (!startInput || !endInput) return '';
-    const start = new Date(startInput);
-    const end = new Date(endInput);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return '';
-
-    const diffMs = end.getTime() - start.getTime();
-    if (diffMs < 0) return 'Error';
-
-    const totalMinutes = Math.floor(diffMs / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    return `${hours}h ${minutes}m`;
   };
 
   // Common processor for data from File (Excel/CSV) or Text Area
@@ -64,14 +49,9 @@ export const PatientUploader: React.FC<Props> = ({ onDataLoaded, existingData })
         id: `Unknown-${idx}`,
         name: 'Unknown',
         age: '',
-        createdDate: '',
-        examDate: '',
-        timeToStudy: ''
       };
 
       let dobVal = null;
-      let createdVal = null;
-      let doneVal = null;
 
       headers.forEach((h: string, i: number) => {
         if (row[i] !== undefined && row[i] !== null) {
@@ -79,10 +59,15 @@ export const PatientUploader: React.FC<Props> = ({ onDataLoaded, existingData })
             const headerLower = h.toLowerCase();
             
             // Smart mapping for specific columns
-            if (headerLower === 'id' || headerLower === 'study id' || headerLower === 'mrn' || headerLower === 'studyid') {
-                record.id = String(val);
+            if (headerLower === 'id' || headerLower === 'study id' || headerLower === 'mrn' || headerLower === 'studyid' || headerLower === 'exam number' || headerLower === 'study id') {
+                const strVal = String(val).trim();
+                if (strVal) record.id = strVal;
             } else if (headerLower.includes('name') && !headerLower.includes('file')) {
                 record.name = String(val);
+            } else if (headerLower === 'gender') {
+                record.gender = String(val);
+            } else if (headerLower === 'clinic info') {
+                (record as MergedRecord).clinicInfo = String(val);
             } else {
                 // Keep all other columns dynamically
                 record[h] = val; 
@@ -91,54 +76,29 @@ export const PatientUploader: React.FC<Props> = ({ onDataLoaded, existingData })
             // Capture dates for calculation
             
             // 1. DOB
-            if (headerLower.includes('dob') || headerLower.includes('birth')) {
+            if (headerLower.includes('dob') || headerLower.includes('birth') || headerLower === 'patient dob') {
                 dobVal = val;
                 record.dob = String(val);
-            }
-            
-            // 2. Created Stamp (Start of study process)
-            if (
-                headerLower.includes('created') || 
-                (headerLower.includes('order') && !headerLower.includes('done') && !headerLower.includes('exam'))
-            ) {
-                createdVal = val;
-                record.createdDate = String(val);
-            }
-
-            // 3. Done Stamp (End of study process, used for Age calculation)
-            if (
-                headerLower.includes('done') || 
-                headerLower.includes('exam') || 
-                headerLower.includes('study date') || 
-                headerLower.includes('finalized')
-            ) {
-                doneVal = val;
-                record.examDate = String(val);
             }
         }
       });
       
-      // Calculate Age (using DOB and Done Stamp)
-      const calculatedAge = calculateAge(dobVal, doneVal);
+      // Calculate Age
+      const calculatedAge = calculateAge(dobVal);
       if (calculatedAge !== '') {
           record.age = calculatedAge;
       } else if (record['Age'] || record['age']) {
           record.age = record['Age'] || record['age'];
       }
 
-      // Calculate Time to Study (Done Stamp - Created Stamp)
-      const calculatedTime = calculateTimeToStudy(createdVal, doneVal);
-      if (calculatedTime) {
-          record.timeToStudy = calculatedTime;
-      }
-
       // Fallback: If ID wasn't found in a column named "id", assume first column is ID
       if (record.id.startsWith('Unknown-') && row[0]) {
-          record.id = String(row[0]);
+          const firstColVal = String(row[0]).trim();
+          if (firstColVal) record.id = firstColVal;
       }
       
       return record;
-    });
+    }).filter(r => !r.id.startsWith('Unknown-') && r.id.trim() !== '');
 
     // UPDATED: MERGE logic instead of replace
     setLocalRecords(prev => {
@@ -235,17 +195,24 @@ export const PatientUploader: React.FC<Props> = ({ onDataLoaded, existingData })
   };
   
   const handleClear = () => {
-      if (confirm("Are you sure you want to clear the upload list? This will remove all loaded patients from this preview.")) {
-        setLocalRecords([]);
-        setError(null);
+      if (!showConfirmClear) {
+        setShowConfirmClear(true);
+        // Auto-reset after 3 seconds
+        setTimeout(() => setShowConfirmClear(false), 3000);
+        return;
       }
+      setLocalRecords([]);
+      setInputText('');
+      setError(null);
+      setShowConfirmClear(false);
+      onDataLoaded([]);
   };
 
   const loadSample = () => {
-    const sample = `StudyID,Name,Patient Date of Birth,Date_time order created,Done Stamp,Gender,Mechanism
-101,John Doe,1980-05-12,2024-01-15 08:00,2024-01-15 10:30,M,MVA
-102,Jane Smith,1992-11-20,2023-12-10 14:00,2023-12-10 16:45,F,Fall from height
-103,Bob Jones,1975-02-15,2024-02-01 09:15,2024-02-01 10:00,M,Assault`;
+    const sample = `StudyID,Name,Patient Date of Birth,Gender,Mechanism
+101,John Doe,1980-05-12,M,MVA
+102,Jane Smith,1992-11-20,F,Fall from height
+103,Bob Jones,1975-02-15,M,Assault`;
     setInputText(sample);
   };
 
@@ -266,8 +233,12 @@ export const PatientUploader: React.FC<Props> = ({ onDataLoaded, existingData })
                     Patient Cohort
                  </h3>
                  {localRecords.length > 0 && (
-                     <button onClick={handleClear} className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
-                         <Trash2 className="w-3 h-3" /> Clear List
+                     <button 
+                        onClick={handleClear} 
+                        className={`text-xs flex items-center gap-1 transition-colors ${showConfirmClear ? 'text-amber-600 font-bold' : 'text-red-500 hover:text-red-700'}`}
+                     >
+                         <Trash2 className="w-3 h-3" /> 
+                         {showConfirmClear ? 'Click again to confirm' : 'Clear List'}
                      </button>
                  )}
              </div>

@@ -13,10 +13,7 @@ export interface PatientRecord {
   name?: string;
   dob?: string;
   gender?: string;
-  examDate?: string; // Maps to Done Stamp
-  createdDate?: string; // Maps to Created Stamp
   age?: number | string; // Calculated field
-  timeToStudy?: string; // Calculated field (Done - Created)
   // Dynamic fields for other columns in the initial extract
   [key: string]: any;
 }
@@ -24,62 +21,64 @@ export interface PatientRecord {
 // Represents the data extracted from the Radiology Report
 // Standard for Boolean-like fields: 0=No, 1=Yes, 9=N/A, 999=Missing
 export interface ExtractedData {
-  // New Variable
-  injury_mechanism: number; // 1=Strangulation, 2=Hanging, 0=Other/Unknown, 9=N/A, 999=Missing
-
-  // Fractures
-  fractures: number; // 9=N/A, 999=Missing
-  fractures_cspine: number;
-  fractures_calvarium: number;
-  fractures_skull_base: number;
-  fractures_leforte: number;
-  fractures_cricoid: number;
-  fractures_hyoid: number;
-  fractures_larynx: number;
-
-  // Vascular
-  vascular_injury: number;
-  vessel_carotid: number;
-  vessel_vertebral: number;
-  vessel_internal_jugular: number;
-  vessel_other: number; // 0=No, 1=Yes, 9=N/A, 999=Missing
-  vessel_other_specify: string;
-  vascular_report_comments: string;
-
-  // Biffl Grading
-  biffl_grading_used: number; // 9=N/A, 999=Missing
-  biffl_grade: string;
-  biffl_grade_comments: string;
-  reviewed_biffl_grade: string;
-
-  // Brain Pathology
-  brain_pathology: number; // 9=N/A, 999=Missing
-  brain_pathology_details: number; // 0=None, 1=Ischemia, 2=Hemorrhage, 9=N/A, 999=Missing
-  brain_pathology_comments: string;
-
   // Clinical History & Status
-  ipv_history: number; // 1=Yes, 0=No, 9=N/A, 999=Missing
-  gcs: string; // Glasgow Coma Scale
-  intubated: number; // 9=N/A, 999=Missing
-
-  // Clinical Findings (Prefixes removed)
+  gbv: number; 
+  gcs: string;
+  intubated: number;
   soft_tissue_injury: number;
-  loc: number; // Loss of Consciousness
-  neuro_impaired: number;
-  seizures: number;
-  neck_pain: number;
+  neckpain: number;
   dysphagia: number;
-  hoarseness: number;
   bruising: number;
   ligature: number;
   swelling: number;
   subconj_hemorrhages: number;
-  c_spine_tenderness: number;
+  cspine_tenderness: number;
+  hoarseness: number;
+  focal_neuro: number; 
+  limb_impaired: number; 
+  loc: number;
+  seizures: number;
+
+  // Radiology Results (RR_ prefix)
+  rr_fractures: number;
+  rr_fractures_cspine: number;
+  rr_fractures_calvarium: number;
+  rr_fractures_skullbase: number;
+  rr_fractures_leforte: number;
+  rr_fractures_cricoid: number;
+  rr_fractures_hyoid: number;
+  rr_fractures_larynx: number;
+  
+  rr_vascular_injury: number;
+  vessel_carotid: number;
+  vessel_vertebral: number;
+  vessel_other: number;
+  vessel_other_specify: string;
+  rr_vessel_injured_report_comments: string;
+  
+  rr_biffl_used: number;
+  rr_biffl_rt_carotid: string;
+  rr_biffl_lt_carotid: string;
+  rr_biffl_rt_vertebral: string;
+  rr_biffl_lt_vertebral: string;
+  
+  rr_reviewed_biffl_rt_carotid: string;
+  rr_reviewed_biffl_lt_carotid: string;
+  rr_reviewed_biffl_rt_vertebral: string;
+  rr_reviewed_biffl_lt_vertebral: string;
+  
+  rr_brain_pathology: number; // yes/no
+  rr_brain_pathology_type: number; // ischemia=1, hemorrhage=2
+  rr_brain_pathology_report_comments: string;
+
+  // Injury Mechanism
+  injury_mechanism: number; // 1=Strangulation, 2=Hanging, 0=Other/Unknown
 }
 
 // The combined object used for the final analysis sheet
 export interface MergedRecord extends PatientRecord {
   radiologyReportText?: string;
+  clinicInfo?: string;
   reportFilename?: string;
   extractionStatus: 'PENDING' | 'EXTRACTED' | 'REVIEWED' | 'ERROR';
   extractionError?: string;
